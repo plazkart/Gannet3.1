@@ -184,7 +184,7 @@ while SpecRegLoop > -1
             MRS_struct.out.FreqStdevHz(MRS_struct.ii) = std(parsFit(:,1),1);
             
             % Reject transients that are greater than 3 st. devs. of MSEs (MM: 171117)
-            MRS_struct.out.reject(:,MRS_struct.ii) = zMSE > 3;
+            MRS_struct.out.reject(:,MRS_struct.ii) = zMSE > 1000;
             
         end        
     end

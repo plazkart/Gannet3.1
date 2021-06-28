@@ -610,7 +610,7 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                     for ll = 1:size(AllFramesFTrealign,2)/2
                         DIFFs(:,ll) = AllFramesFTrealign(:,ON_inds(ll)) - AllFramesFTrealign(:,OFF_inds(ll));
                     end
-                    
+                  
                     DIFFs = ifft(ifftshift(DIFFs,1),[],1);
                     DIFFs = fftshift(fft(DIFFs(1:MRS_struct.p.npoints(ii),:),[],1),1);
                     
@@ -633,10 +633,46 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                     w = 1./d.^2;
                     w = w/sum(w);
                     w = repmat(w, [size(AllFramesFTrealign,1) 1]);
+                    %AYakovlev 2206-2021: Surround subtraction scheme. here
+                    %and 654 replaced
+                    %___injection
+                    load('C:\Users\Science\Documents\dats\gaba-dynamics\__newProc\ProcessedData\temp.mat');
+                    OFF_seriesWeighted = w .* AllFramesFTrealign(:,MRS_struct.fids.ON_OFF==0);
+                    ON_seriesWeighted = w .* AllFramesFTrealign(:,MRS_struct.fids.ON_OFF==1);
                     
-                    MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:) = sum(w .* AllFramesFTrealign(:,MRS_struct.fids.ON_OFF==0),2);
-                    MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = sum(w .* AllFramesFTrealign(:,MRS_struct.fids.ON_OFF==1),2);
+
+                    if SubtractionType == 0
+                        if mod(DataSharing(1) , 2)==0
+                            ON_seriesWeighted = ON_seriesWeighted(:, (DataSharing(2:2:end)+1)/2);
+                            OFF_seriesWeighted = OFF_seriesWeighted(:, DataSharing(1:2:end)/2);
+                        else
+                            ON_seriesWeighted = ON_seriesWeighted(:, (DataSharing(2:2:end)+1)/2);
+                            OFF_seriesWeighted = OFF_seriesWeighted(:, DataSharing(1:2:end)/2);
+                        end
+                        MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:) = sum(OFF_seriesWeighted, 2);
+                        MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = sum(ON_seriesWeighted, 2);
+                    else
+                        for counter = 1:length(DataSharing)
+                            if mod(DataSharing(counter), 2)==0
+                                OFF_seriesWeighted_excluded(:, counter) = OFF_seriesWeighted(:, DataSharing(counter)/2);
+                                ON_seriesWeighted_excluded(:, counter) = (ON_seriesWeighted(:, DataSharing(counter)/2-1)...
+                                    +ON_seriesWeighted(:, DataSharing(counter)/2+1))/2;
+                            else
+                                ON_seriesWeighted_excluded(:, counter) = ON_seriesWeighted(:, (DataSharing(counter)+1)/2);
+                                OFF_seriesWeighted_excluded(:, counter) = (OFF_seriesWeighted(:, (DataSharing(counter)+1)/2-1)...
+                                    +OFF_seriesWeighted(:, (DataSharing(counter)+1)/2))/2;
+                            end
+                        end
+                        MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:) = sum(OFF_seriesWeighted_excluded,2);
+                        MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = sum(ON_seriesWeighted_excluded,2);
+                    end
                     
+                
+                    %___injection end
+                    
+%                     MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:) = sum(w .* AllFramesFTrealign(:,MRS_struct.fids.ON_OFF==0),2);
+%                     MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = sum(w .* AllFramesFTrealign(:,MRS_struct.fids.ON_OFF==1),2);
+                  
                     MRS_struct.out.reject(:,ii) = zeros(1,size(AllFramesFTrealign,2));
                     
                 else
@@ -644,12 +680,47 @@ for ii = 1:numscans % Loop over all files in the batch (from metabfile)
                     if strcmp(MRS_struct.p.vendor,'Siemens_rda')
                         MRS_struct.out.reject(:,ii) = zeros(size(AllFramesFTrealign,2),1);
                     end
-                    MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:) = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF==0)' & MRS_struct.out.reject(:,ii)==0), 2);
-                    MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF==1)' & MRS_struct.out.reject(:,ii)==0), 2);
+                    %AYakovlev 2506-2021: Surround subtraction scheme. here
+                    %___injection
+                    load('C:\Users\Science\Documents\dats\gaba-dynamics\__newProc\ProcessedData\temp.mat');
+                    OFF_seriesWeighted =  AllFramesFTrealign(:,MRS_struct.fids.ON_OFF==0);
+                    ON_seriesWeighted =  AllFramesFTrealign(:,MRS_struct.fids.ON_OFF==1);
+                    
+
+                    if SubtractionType == 0
+                        if mod(DataSharing(1) , 2)==0
+                            ON_seriesWeighted = ON_seriesWeighted(:, (DataSharing(2:2:end)+1)/2);
+                            OFF_seriesWeighted = OFF_seriesWeighted(:, DataSharing(1:2:end)/2);
+                        else
+                            ON_seriesWeighted = ON_seriesWeighted(:, (DataSharing(1:2:end)+1)/2);
+                            OFF_seriesWeighted = OFF_seriesWeighted(:, DataSharing(2:2:end)/2);
+                        end
+                        MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:) = sum(OFF_seriesWeighted, 2);
+                        MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = sum(ON_seriesWeighted, 2);
+                    else
+                        for counter = 1:length(DataSharing)
+                            if mod(DataSharing(counter), 2)==0
+                                OFF_seriesWeighted_excluded(:, counter) = OFF_seriesWeighted(:, DataSharing(counter)/2);
+                                ON_seriesWeighted_excluded(:, counter) = (ON_seriesWeighted(:, DataSharing(counter)/2-1)...
+                                    +ON_seriesWeighted(:, DataSharing(counter)/2+1))/2;
+                            else
+                                ON_seriesWeighted_excluded(:, counter) = ON_seriesWeighted(:, (DataSharing(counter)+1)/2);
+                                OFF_seriesWeighted_excluded(:, counter) = (OFF_seriesWeighted(:, (DataSharing(counter)+1)/2-1)...
+                                    +OFF_seriesWeighted(:, (DataSharing(counter)+1)/2))/2;
+                            end
+                        end
+                        %___injection end
+                        %MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:) = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF==0)' & MRS_struct.out.reject(:,ii)==0), 2);
+                        %MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = mean(AllFramesFTrealign(:,(MRS_struct.fids.ON_OFF==1)' & MRS_struct.out.reject(:,ii)==0), 2);
+                        MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:) = mean(OFF_seriesWeighted_excluded, 2);
+                        MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:)  = mean(ON_seriesWeighted_excluded, 2);
+                    end  
                     
                 end
-                
+                % replaced! AYakovlev, look 636
                 MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).diff(ii,:) = (MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).on(ii,:) - MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).off(ii,:))/2;
+                
+                
                 MRS_struct.spec.(vox{kk}).(MRS_struct.p.target{1}).diff_noalign(ii,:) = (mean(AllFramesFT(:,(MRS_struct.fids.ON_OFF==1)),2) - mean(AllFramesFT(:,(MRS_struct.fids.ON_OFF==0)),2))/2;
                 
             end
